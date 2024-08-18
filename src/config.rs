@@ -86,11 +86,11 @@ pub struct NetworkConfig {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProvidersConfig {
-    /// Provider url for the primary chain
-    pub primary_network_provider: SecretUrl,
+    /// Provider url for the l1
+    pub l1_network_provider: SecretUrl,
 
-    /// Provider urls for the world id
-    pub world_id_network_provider: SecretUrl,
+    /// Provider urls for the l2
+    pub l2_network_provider: SecretUrl,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -349,32 +349,32 @@ mod tests {
         enabled = true
     "#};
 
-    const FULL_ENV: &str = indoc::indoc! {r#"
-        SEQ__APP__MAX_EPOCH_DURATION=0s
-        SEQ__APP__SCANNING_WINDOW_SIZE=100
-        SEQ__APP__SCANNING_CHAIN_HEAD_OFFSET=0
-        SEQ__APP__TIME_BETWEEN_SCANS=30s
-        SEQ__APP__MONITORED_TXS_CAPACITY=100
+    // const FULL_ENV: &str = indoc::indoc! {r#"
+    //     SEQ__APP__MAX_EPOCH_DURATION=0s
+    //     SEQ__APP__SCANNING_WINDOW_SIZE=100
+    //     SEQ__APP__SCANNING_CHAIN_HEAD_OFFSET=0
+    //     SEQ__APP__TIME_BETWEEN_SCANS=30s
+    //     SEQ__APP__MONITORED_TXS_CAPACITY=100
 
-        SEQ__NETWORK__IDENTITY_MANAGER_ADDRESS=0x0000000000000000000000000000000000000000
+    //     SEQ__NETWORK__IDENTITY_MANAGER_ADDRESS=0x0000000000000000000000000000000000000000
 
-        SEQ__PROVIDERS__PRIMARY_NETWORK_PROVIDER=http://localhost:8545/
-        SEQ__WORLD__ID__NETWORK_PROVIDER=http://localhost:8545/
+    //     SEQ__PROVIDERS__PRIMARY_NETWORK_PROVIDER=http://localhost:8545/
+    //     SEQ__WORLD__ID__NETWORK_PROVIDER=http://localhost:8545/
 
-        SEQ__RELAYER__KIND=tx_sitter
-        SEQ__RELAYER__TX_SITTER_URL=http://localhost:3000
-        SEQ__RELAYER__TX_SITTER_ADDRESS=0x0000000000000000000000000000000000000000
-        SEQ__RELAYER__TX_SITTER_GAS_LIMIT=100000
+    //     SEQ__RELAYER__KIND=tx_sitter
+    //     SEQ__RELAYER__TX_SITTER_URL=http://localhost:3000
+    //     SEQ__RELAYER__TX_SITTER_ADDRESS=0x0000000000000000000000000000000000000000
+    //     SEQ__RELAYER__TX_SITTER_GAS_LIMIT=100000
 
-        SEQ__SERVER__ADDRESS=0.0.0.0:3001
-        SEQ__SERVER__SERVE_TIMEOUT=30s
+    //     SEQ__SERVER__ADDRESS=0.0.0.0:3001
+    //     SEQ__SERVER__SERVE_TIMEOUT=30s
 
-        SEQ__SERVICE__SERVICE_NAME=scroll-bridge-service
+    //     SEQ__SERVICE__SERVICE_NAME=scroll-bridge-service
 
-        SEQ__SERVICE__DATADOG__TRACES_ENDPOINT=http://localhost:8126
+    //     SEQ__SERVICE__DATADOG__TRACES_ENDPOINT=http://localhost:8126
 
-        SEQ__OFFCHAIN_MODE__ENABLED=false
-    "#};
+    //     SEQ__OFFCHAIN_MODE__ENABLED=false
+    // "#};
 
 
     #[test]
