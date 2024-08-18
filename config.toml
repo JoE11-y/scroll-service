@@ -1,0 +1,19 @@
+[network]
+# Address of ScrollBridge contract on blockchain.
+scroll_bridge_address = ''
+
+[providers]
+# Blockchain API URL (anvil or geth)
+primary_network_provider = "http://localhost:8545"
+world_id_network_provider = "http://localhost:8545"
+
+[relayer]
+kind = "tx_sitter"
+# URL of TX-sitter API + API token
+tx_sitter_url = "http://localhost:3000/1/api/G5CKNF3BTS2hRl60bpdYMNPqXvXsP-QZd2lrtmgctsk="
+tx_sitter_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+tx_sitter_gas_limit = 2000000
+
+[server]
+# Port to run scroll-bridge-service API on
+address = "0.0.0.0:8080"
