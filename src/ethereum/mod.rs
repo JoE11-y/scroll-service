@@ -9,7 +9,6 @@ pub use write::TxError;
 
 use self::write_provider::WriteProvider;
 use crate::config::Config;
-// use crate::identity::processor::TransactionId;
 pub type TransactionId = String;
 
 pub mod read;
@@ -19,9 +18,9 @@ mod write_provider;
 
 #[derive(Clone, Debug)]
 pub struct Ethereum {
-    read_provider:            Arc<ReadProvider>,
-    secondary_read_provider:  Arc<ReadProvider>,
-    write_provider:           Arc<WriteProvider>,
+    l1_read_provider:   Arc<ReadProvider>,
+    l1_write_provider:  Arc<WriteProvider>,
+    l2_read_provider:   Arc<ReadProvider>,
 }
 
 impl Ethereum {
@@ -35,34 +34,34 @@ impl Ethereum {
             bail!("Relayer config is required for Ethereum.");
         };
 
-        let read_provider =
-            ReadProvider::new(providers_config.primary_network_provider.clone().into()).await?;
+        let l1_read_provider =
+            ReadProvider::new(providers_config.l1_network_provider.clone().into()).await?;
 
-        let secondary_read_provider = ReadProvider::new(providers_config.world_id_network_provider.clone().into()).await?;
+        let l2_read_provider = ReadProvider::new(providers_config.l2_network_provider.clone().into()).await?;
 
-        let write_provider: Arc<WriteProvider> =
-            Arc::new(WriteProvider::new(read_provider.clone(), relayer_config).await?);
+        let l1_write_provider: Arc<WriteProvider> =
+            Arc::new(WriteProvider::new(l1_read_provider.clone(), relayer_config).await?);
 
         Ok(Self {
-            read_provider: Arc::new(read_provider),
-            secondary_read_provider: Arc::new(secondary_read_provider),
-            write_provider,
+            l1_read_provider: Arc::new(l1_read_provider),
+            l2_read_provider: Arc::new(l2_read_provider),
+            l1_write_provider,
         })
     }
 
     #[must_use]
-    pub const fn provider(&self) -> &Arc<ReadProvider> {
-        &self.read_provider
+    pub const fn l1_provider(&self) -> &Arc<ReadProvider> {
+        &self.l1_read_provider
     }
 
     #[must_use]
-    pub const fn secondary_provider(&self) -> &Arc<ReadProvider>{
-        &self.secondary_read_provider
+    pub const fn l2_provider(&self) -> &Arc<ReadProvider>{
+        &self.l2_read_provider
     }
 
     #[must_use]
     pub fn address(&self) -> Address {
-        self.write_provider.address()
+        self.l1_write_provider.address()
     }
 
     pub async fn send_transaction(
@@ -71,14 +70,14 @@ impl Ethereum {
         only_once: bool,
     ) -> Result<TransactionId, TxError> {
         tracing::info!(?tx, "Sending transaction");
-        self.write_provider.send_transaction(tx, only_once).await
+        self.l1_write_provider.send_transaction(tx, only_once).await
     }
 
     pub async fn fetch_pending_transactions(&self) -> Result<Vec<TransactionId>, TxError> {
-        self.write_provider.fetch_pending_transactions().await
+        self.l1_write_provider.fetch_pending_transactions().await
     }
 
     pub async fn mine_transaction(&self, tx: TransactionId) -> Result<bool, TxError> {
-        self.write_provider.mine_transaction(tx).await
+        self.l1_write_provider.mine_transaction(tx).await
     }
 }

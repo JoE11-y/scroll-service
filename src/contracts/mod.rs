@@ -17,23 +17,23 @@ use crate::utils::TransactionId;
 #[derive(Debug)]
 pub struct ScrollBridge {
     ethereum:       Ethereum,
-    abi:            ScrollStateBridge<ReadProvider>,
-    secondary_abi:  ScrollWorldId<ReadProvider>,
-    tertiary_abi:   WorldId<ReadProvider>
+    bridge_abi:            ScrollStateBridge<ReadProvider>,
+    scroll_world_id_abi:  ScrollWorldId<ReadProvider>,
+    world_id_abi:   WorldId<ReadProvider>
 }
 
 impl ScrollBridge {
     // TODO: I don't like these public getters
-    pub fn abi(&self) -> &ScrollStateBridge<ReadProvider> {
-        &self.abi
+    pub fn bridge_abi(&self) -> &ScrollStateBridge<ReadProvider> {
+        &self.bridge_abi
     }
 
-    pub fn secondary_abis(&self) -> &ScrollWorldId<ReadProvider> {
-        &self.secondary_abi
+    pub fn scroll_world_id_abi(&self) -> &ScrollWorldId<ReadProvider> {
+        &self.scroll_world_id_abi
     }
 
-    pub fn tertiary_abis(&self) -> &WorldId<ReadProvider> {
-      &self.tertiary_abi
+    pub fn world_id_abi(&self) -> &WorldId<ReadProvider> {
+      &self.world_id_abi
   }
 
     #[instrument(level = "debug", skip_all)]
@@ -47,7 +47,7 @@ impl ScrollBridge {
 
         // Check that there is code deployed at the target address.
         let address = network_config.scroll_bridge_address;
-        let code = ethereum.provider().get_code(address, None).await?;
+        let code = ethereum.l1_provider().get_code(address, None).await?;
         if code.as_ref().is_empty() {
             error!(
                 ?address,
@@ -56,12 +56,12 @@ impl ScrollBridge {
         }
 
         // Connect to the running batching contract.
-        let abi = ScrollStateBridge::new(
+        let bridge_abi = ScrollStateBridge::new(
             network_config.scroll_bridge_address,
-            ethereum.provider().clone(),
+            ethereum.l1_provider().clone(),
         );
 
-        let owner = abi.owner().call().await?;
+        let owner = bridge_abi.owner().call().await?;
         if owner != ethereum.address() {
             error!(?owner, signer = ?ethereum.address(), "Signer is not the owner of the state bridge contract.");
             panic!("Cannot currently continue in read-only mode.")
@@ -74,33 +74,32 @@ impl ScrollBridge {
         );
 
         // get scrollworldID address from scoll bridge
-        let scrollWorldIdAddress = abi.scroll_world_id_address().call().await?;
+        let scrollWorldIdAddress = bridge_abi.scroll_world_id_address().call().await?;
 
-        let code = ethereum.provider().get_code(scrollWorldIdAddress, None).await?;
+        let code = ethereum.l2_provider().get_code(scrollWorldIdAddress, None).await?;
         if code.as_ref().is_empty() {
             error!(
                 ?scrollWorldIdAddress,
                 "No contract code is deployed at the scroll world id address."
             );
         }
-        let secondary_abi = ScrollWorldId::new(
+        let scroll_world_id_abi = ScrollWorldId::new(
             scrollWorldIdAddress,
-            ethereum.provider().clone()
+            ethereum.l1_provider().clone()
         );
 
         // get worldId address from scroll bridge
-        let worldIdAddess = abi.world_id_address().call().await?;
-        let world_id_provider = ethereum.secondary_provider();
-        let tertiary_abi = WorldId::new(
+        let worldIdAddess = bridge_abi.world_id_address().call().await?;
+        let world_id_abi = WorldId::new(
             worldIdAddess,
-            world_id_provider.clone()
+            ethereum.l1_provider().clone()
         );
 
         let scroll_bridge = Self {
             ethereum,
-            abi,
-            secondary_abi,
-            tertiary_abi
+            bridge_abi,
+            scroll_world_id_abi,
+            world_id_abi
         };
 
         Ok(scroll_bridge)
@@ -108,7 +107,7 @@ impl ScrollBridge {
 
     #[instrument(level = "debug")]
     pub async fn propagate_root(&self) -> anyhow::Result<TransactionId> {
-        let propagate_root_transaction = self.abi.propagate_root().tx;
+        let propagate_root_transaction = self.bridge_abi.propagate_root().tx;
         self.ethereum
             .send_transaction(propagate_root_transaction, true)
             .await
@@ -117,29 +116,29 @@ impl ScrollBridge {
 
     #[instrument(level = "debug", skip_all)]
     pub async fn get_scroll_latest_root(&self) -> anyhow::Result<U256> {
-        let latest_root = self.secondary_abi.latest_root().call().await?;
+        let latest_root = self.scroll_world_id_abi.latest_root().call().await?;
         Ok(latest_root)
     }
 
     #[instrument(level = "debug", skip_all)]
     pub async fn get_world_id_latest_root(&self) -> anyhow::Result<U256> {
-        let latest_root = self.tertiary_abi.latest_root().call().await?;
+        let latest_root = self.world_id_abi.latest_root().call().await?;
         Ok(latest_root)
     }
 
     #[instrument(level = "debug", skip_all)]
     pub async fn is_root_mined(&self, root: U256) -> anyhow::Result<bool> {
-        let (root_on_mainnet, ..) = self.tertiary_abi.query_root(root).call().await?;
+        let (root_on_mainnet, ..) = self.world_id_abi.query_root(root).call().await?;
 
         if root_on_mainnet.is_zero() {
             return Ok(false);
         }
 
-        let root_timestamp = self.secondary_abi.root_history(root).call().await?;
+        let root_timestamp = self.scroll_world_id_abi.root_history(root).call().await?;
 
         // root_history only returns superseded roots, so we must also check the latest
         // root
-        let latest_root = self.secondary_abi.latest_root().call().await?;
+        let latest_root = self.scroll_world_id_abi.latest_root().call().await?;
 
         // If root is not superseded and it's not the latest root
         // then it's not mined

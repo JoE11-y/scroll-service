@@ -30,7 +30,7 @@ abigen!(
 abigen!(
     ScrollStateBridge,
     r#"[
-        event RootPropated(uint256 root)
+        event RootPropagated(uint256 root)
         function propagateRoot() external
         function owner() public view virtual returns (address)
         function scrollWorldIDAddress() public view returns (address)

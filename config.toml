@@ -4,8 +4,8 @@ scroll_bridge_address = ''
 
 [providers]
 # Blockchain API URL (anvil or geth)
-primary_network_provider = "http://localhost:8545"
-world_id_network_provider = "http://localhost:8545"
+l1_network_provider = "http://localhost:8545"
+l2_network_provider = "http://localhost:8545"
 
 [relayer]
 kind = "tx_sitter"

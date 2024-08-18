@@ -1,32 +1,20 @@
 [package]
-# Please adjust all these values, including the license
-name = "scroll-bridge-service"
-version = "0.1.0"
-authors = ["Remco Bloemen <remco@wicked.ventures>"]
+name = "scroll-service"
+version = "2.0.0"
+authors = ["world-coin"]
 edition = "2021"
-build = "build.rs"
-homepage = "https://github.com/Recmo/rust-service-template"
-repository = "https://github.com/Recmo/rust-service-template"
-description = "Template for a Rust CLI tool"
-keywords = ["template"]
-categories = ["template"]
+homepage = ""
+repository = ""
+description = "A tool that sync Scoll World to WorldID"
+keywords = ["worldcoin", "protocol", "signup"]
+categories = ["cryptography::cryptocurrencies"]
 readme = "Readme.md"
-license-file = "mit-license.md"
+license-file = "LICENSE.md"
+build = "build.rs"
 
 [features]
 default = []
-bench = [ "criterion", "proptest" ]
-tokio-console = [ "console-subscriber" ]
 
-[[bin]]
-name = "rust-app"
-path = "src/cli/main.rs"
-
-[[bench]]
-name = "criterion"
-harness = false
-path = "criterion.rs"
-required-features = [ "bench", "proptest" ]
 
 [dependencies]
 anyhow = { version = "1.0.68" }
@@ -37,9 +25,7 @@ axum-server = "0.4.4"
 bytes = "1.4.0"
 chrono = { version = "0.4.19", features = ["serde"] }
 clap = { version = "4.0", features = ["derive"] }
-color-eyre = "0.6"
-console-subscriber = { version = "0.1", optional = true }
-criterion = { version = "0.3", optional = true, features = [ "async_tokio" ] }
+telemetry-batteries = { git = "https://github.com/worldcoin/telemetry-batteries.git", rev = "802a4f39f358e077b11c8429b4c65f3e45b85959" }
 config = "0.13.4"
 ethers = { version = "2.0.10", features = ["ws", "ipc", "openssl", "abigen"] }
 ethers-solc = "2.0.10"
@@ -50,28 +36,41 @@ hex = "0.4.3"
 hex-literal = "0.4.1"
 humantime = "2.1.0"
 humantime-serde = "1.1.1"
-hyper = { version = "^0.14.17", features = [ "server", "tcp", "http1", "http2" ] }
+hyper = { version = "^0.14.17", features = ["server", "tcp", "http1", "http2"] }
 indoc = "2.0.4"
-itertools = "0.10"
-mimalloc = { version = "0.1", default-features = false, optional = true }
 once_cell = "1.8"
 oz-api = { path = "crates/oz-api" }
-prometheus = { version = "0.13", features = [ "process" ] }
-proptest = { version = "1.0", optional = true }
+# We need upstream PR#465 to fix #272.
+prometheus = "0.13.3"
 reqwest = { version = "0.11.18", features = ["json"] }
+ruint = { version = "1.12.1", features = ["primitive-types", "sqlx"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-smallvec = { version = "^1.6.1", features = [ "serde" ] }
-structopt = "0.3"
+sqlx = { version = "0.7", features = [
+    "runtime-tokio-native-tls",
+    "any",
+    "postgres",
+    "chrono",
+] }
+take_mut = "0.2.2"
+tempfile = "3.5.0"
 thiserror = "1.0"
-tokio = { version = "1.17", features = [ "signal", "macros", "rt", "sync", "time", "rt-multi-thread" ] }
+tokio = { version = "1.17", features = [
+    "signal",
+    "macros",
+    "rt",
+    "sync",
+    "time",
+    "rt-multi-thread",
+    "tracing",
+    "test-util",
+] }
 toml = "0.8.8"
 tracing = "0.1"
 tracing-futures = "0.2"
-tracing-subscriber = { version = "0.3", features = [ "env-filter", "json" ] }
 tx-sitter-client = { path = "crates/tx-sitter-client" }
 url = { version = "2.2", features = ["serde"] }
-users = "0.11"
+zeroize = "1.6.0"
 
 [dev-dependencies]
 dotenv = "0.15.0"
@@ -79,26 +78,18 @@ hex = "0.4.3"
 lazy_static = "1.4.0"
 maplit = "1.0.2"
 micro-oz = { path = "crates/micro-oz" }
-similar-asserts = "1.5.0"
-pretty_assertions = "1.0"
-proptest = { version = "1.0" }
 regex = { version = "1.7.1", features = ["std"] }
+similar-asserts = "1.5.0"
+test-case = "3.0"
+testcontainers = "0.15.0"
+tracing-subscriber = "0.3.11"
 tracing-test = "0.2"
 
-[build-dependencies]
-eyre = "0.6"
-time = { version = "0.3.5", features = [ "formatting", "parsing" ] }
-
 [profile.release]
-codegen-units = 1
-lto = true
 panic = "abort"
 overflow-checks = true
-strip = true
+lto = "thin"
 debug = true
 
-# Compilation profile for any non-workspace member.
-# Dependencies are optimized, even in a dev build. This improves dev performance
-# while having neglible impact on incremental build times.
-[profile.dev.package."*"]
-opt-level = 3
+[profile.dev]
+panic = "abort"
