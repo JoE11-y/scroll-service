@@ -1,4 +1,4 @@
-# Rust project template
+# SCROLL BRIDGE SERVICE
 
 ![lines of code](https://img.shields.io/tokei/lines/github/recmo/rust-service-template)
 [![dependency status](https://deps.rs/repo/github/recmo/rust-service-template/status.svg)](https://deps.rs/repo/github/recmo/rust-service-template)
