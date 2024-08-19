@@ -163,6 +163,12 @@ impl TaskMonitor {
         Ok(bridge_status == BridgeStatus::Pending)
     }
 
+    async fn check_if_unsynced(database: &Database) -> anyhow::Result<bool> {
+        let status = database.get_db_status().await?.unwrap_or_else(|| "unsynced".to_string());
+        let bridge_status = BridgeStatus::from_str(&status).unwrap_or(BridgeStatus::Unsynced);
+        Ok(bridge_status == BridgeStatus::Unsynced)
+    }
+
     /// # Errors
     ///
     /// Will return an Error if the committer thread cannot be shut down

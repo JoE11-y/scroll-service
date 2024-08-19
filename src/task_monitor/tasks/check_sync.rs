@@ -26,7 +26,6 @@ pub async fn check_sync(app: Arc<App>, wake_up_notify: Arc<Notify>) -> anyhow::R
 
         app.database.mark_status_as_unsynced().await?;
 
-        // else notify the propagation task
         wake_up_notify.notify_one()
     }
 }

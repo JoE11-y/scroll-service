@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use tokio::sync::{mpsc, Notify};
-use crate::app::App;
+use crate::task_monitor::{App, TaskMonitor};
 use crate::utils::TransactionId;
 
 pub async fn propagate_root(
@@ -13,6 +13,12 @@ pub async fn propagate_root(
 
         tracing::info!("Propagate root triggered");
 
+        let is_unsynced = TaskMonitor::check_if_unsynced(&app.database).await?;
+
+        if !is_unsynced {
+            continue;
+        }
+        
         let tx_id = app.bridge_processor
             .propagate_root()
             .await?;
