@@ -14,6 +14,9 @@ tx_sitter_url = "http://localhost:3000/1/api/G5CKNF3BTS2hRl60bpdYMNPqXvXsP-QZd2l
 tx_sitter_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 tx_sitter_gas_limit = 2000000
 
+[database]
+database = "postgres://postgres:password@localhost:5432/sequencer?sslmode=disable"
+
 [server]
 # Port to run scroll-bridge-service API on
 address = "0.0.0.0:8080"
