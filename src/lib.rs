@@ -3,10 +3,13 @@
 #![allow(clippy::multiple_crate_versions, clippy::too_many_arguments)]
 
 
-pub mod app;
-mod server;
-mod utils;
+
 mod contracts;
 mod ethereum;
-pub mod config;
 mod processor;
+mod database;
+pub mod config;
+pub mod task_monitor;
+pub mod app;
+pub mod server;
+pub mod utils;

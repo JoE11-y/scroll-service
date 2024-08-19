@@ -8,10 +8,13 @@ use ethers::middleware::Middleware;
 use ethers::prelude::{Log, Topic, ValueOrArray, U256};
 use tracing::{error, info, instrument};
 
+pub mod status;
+
 use crate::config::Config;
 use crate::contracts::abi::{RootAddedFilter, RootPropagatedFilter};
 use crate::contracts::scanner::BlockScanner;
 use crate::contracts::ScrollBridge;
+use crate::database::Database;
 use crate::ethereum::{Ethereum, ReadProvider};
 
 pub type TransactionId = String;
@@ -24,12 +27,13 @@ pub trait Processor: Send + Sync + 'static {
 }
 
 pub struct BridgeProcessor {
-    ethereum:          Ethereum,
-    config:            Config,
-    scroll_bridge:  Arc<ScrollBridge>,
+    ethereum:           Ethereum,
+    config:             Config,
+    database:           Arc<Database>,
+    scroll_bridge:      Arc<ScrollBridge>,
 
-    bridge_scanner:    tokio::sync::Mutex<BlockScanner<Arc<ReadProvider>>>,
-    bridge_address:   Address,
+    bridge_scanner:     tokio::sync::Mutex<BlockScanner<Arc<ReadProvider>>>,
+    bridge_address:     Address,
     scroll_world_id_scanner:   tokio::sync::Mutex<BlockScanner<Arc<ReadProvider>>>,
     scroll_world_id_address: Address,
 }
@@ -63,6 +67,7 @@ impl Processor for BridgeProcessor {
 impl BridgeProcessor {
     pub async fn new(
         ethereum: Ethereum,
+        database: Arc<Database>,
         config: Config,
         scroll_bridge: Arc<ScrollBridge>
     ) -> anyhow::Result<Self> {
@@ -93,6 +98,7 @@ impl BridgeProcessor {
         Ok(Self {
             ethereum,
             config,
+            database,
             scroll_bridge,
             bridge_scanner,
             bridge_address,

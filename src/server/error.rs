@@ -3,6 +3,8 @@ use axum::response::IntoResponse;
 use hyper::StatusCode;
 use thiserror::Error;
 
+use crate::database;
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
@@ -23,6 +25,10 @@ pub enum Error {
     InvalidContentType,
     #[error("Root mismatch between world-id and scroll-world-id.")]
     RootMismatch,
+    #[error("service is not initialized")]
+    UNITIALIZED,
+    #[error(transparent)]
+    Database(#[from] database::Error),
     #[error(transparent)]
     Other(#[from] EyreError),
 }

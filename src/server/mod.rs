@@ -4,35 +4,31 @@ use std::net::TcpListener;
 use std::sync::Arc;
 use std::time::Duration;
 
-// use axum::extract::{Query, State};
+use axum::extract::State;
 use axum::response::Response;
-use axum::routing::{get, post};
-use axum::{middleware, Router};
+use axum::routing::get;
+use axum::{middleware, Json, Router};
 use error::Error;
-// use ethers::core::k256::U256;
 use hyper::header::CONTENT_TYPE;
-use hyper::Body;
+use hyper::{Body, StatusCode};
 use prometheus::{Encoder, TextEncoder};
 use tracing::info;
 
 use crate::app::App;
 use crate::config::ServerConfig;
 use crate::utils::shutdown::Shutdown;
+use self::data::{ToResponseCode, ServerStatusResponse};
 
 mod custom_middleware;
 pub mod data;
 
-// use self::data::ToResponseCode;
 
-
-// async fn propagate_root(
-//     State(app): State<Arc<App>>,
-//     Json(insert_identity_request): Json<U256>,
-// ) -> Result<(), Error> {
-//     // app.insert_identity(insert_identity_request.identity_commitment)
-//     //     .await?;
-//     Ok(())
-// }
+async fn fetch_service_status(
+    State(app): State<Arc<App>>
+) -> Result<(StatusCode, Json<ServerStatusResponse>), Error> {
+    let result: ServerStatusResponse  = app.get_service_status().await?;
+    Ok((result.to_response_code(), Json(result)))
+}
 
 async fn health() -> Result<(), Error> {
     Ok(())
@@ -84,8 +80,8 @@ pub async fn bind_from_listener(
     shutdown: Arc<Shutdown>,
 ) -> anyhow::Result<()> {
     let router = Router::new()
-        // Propagate root
-        // .route("/propagateRoot", post(insert_identity))
+        // Return service status
+        .route("/serviceStatus", get(fetch_service_status))
         // Health check, return 200 OK
         .route("/health", get(health))
         .route("/metrics", get(metrics))

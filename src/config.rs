@@ -39,6 +39,7 @@ pub struct Config {
     pub providers:     Option<ProvidersConfig>,
     #[serde(default)]
     pub relayer:       Option<RelayerConfig>,
+    pub database:      DatabaseConfig,
     pub server:        ServerConfig,
     #[serde(default)]
     pub service:       ServiceConfig,

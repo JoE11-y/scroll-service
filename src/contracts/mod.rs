@@ -74,24 +74,31 @@ impl ScrollBridge {
         );
 
         // get scrollworldID address from scoll bridge
-        let scrollWorldIdAddress = bridge_abi.scroll_world_id_address().call().await?;
+        let scroll_world_id_address = bridge_abi.scroll_world_id_address().call().await?;
 
-        let code = ethereum.l2_provider().get_code(scrollWorldIdAddress, None).await?;
+        let code = ethereum.l2_provider().get_code(scroll_world_id_address, None).await?;
         if code.as_ref().is_empty() {
             error!(
-                ?scrollWorldIdAddress,
+                ?scroll_world_id_address,
                 "No contract code is deployed at the scroll world id address."
             );
         }
         let scroll_world_id_abi = ScrollWorldId::new(
-            scrollWorldIdAddress,
+            scroll_world_id_address,
             ethereum.l1_provider().clone()
         );
 
         // get worldId address from scroll bridge
-        let worldIdAddess = bridge_abi.world_id_address().call().await?;
+        let world_id_address = bridge_abi.world_id_address().call().await?;
+        let code = ethereum.l1_provider().get_code(world_id_address, None).await?;
+        if code.as_ref().is_empty() {
+            error!(
+                ?world_id_address,
+                "No contract code is deployed at the scroll world id address."
+            );
+        }
         let world_id_abi = WorldId::new(
-            worldIdAddess,
+            world_id_address,
             ethereum.l1_provider().clone()
         );
 

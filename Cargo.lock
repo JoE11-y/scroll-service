@@ -3676,6 +3676,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da544ee218f0d287a911e9c99a39a8c9bc8fcad3cb8db5959940044ecfc67265"
 
 [[package]]
+name = "postgres-docker-utils"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "test-case",
+ "testcontainers",
+ "testcontainers-modules",
+ "tokio",
+]
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4327,6 +4338,7 @@ dependencies = [
  "micro-oz",
  "once_cell",
  "oz-api",
+ "postgres-docker-utils",
  "prometheus",
  "regex",
  "reqwest",
@@ -4340,6 +4352,7 @@ dependencies = [
  "tempfile",
  "test-case",
  "testcontainers",
+ "testcontainers-modules",
  "thiserror",
  "tokio",
  "toml 0.8.19",
@@ -5188,6 +5201,15 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+]
+
+[[package]]
+name = "testcontainers-modules"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8debb5e215d9e89ea93255fffff00bf037ea44075d7a2669a21a8a988d6b52fd"
+dependencies = [
+ "testcontainers",
 ]
 
 [[package]]
