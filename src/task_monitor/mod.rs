@@ -1,19 +1,23 @@
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
-// use once_cell::sync::Lazy;
-// use prometheus::{linear_buckets, register_gauge, register_histogram, Gauge, Histogram};
-use tokio::sync::{broadcast, mpsc, Mutex, RwLock};
+use once_cell::sync::Lazy;
+use prometheus::{ register_gauge, Gauge};
+
+use tokio::sync::{broadcast, mpsc, Mutex, RwLock, Notify};
 use tokio::task::JoinHandle;
 use tracing::{info, instrument, warn};
+use crate::database::query::DatabaseQuery;
+use crate::database::Database;
+use crate::processor::status::BridgeStatus;
 use crate::utils::shutdown::Shutdown;
-
 use crate::app::App;
-
 
 pub mod tasks;
 
 const PROPAGATE_ROOT_BACKOFF: Duration = Duration::from_secs(5);
+const CHECK_SYNC_STATE_BACKOFF: Duration = Duration::from_secs(5);
 const MONITOR_TXNS_BACKOFF: Duration = Duration::from_secs(5);
 
 struct RunningInstance {
@@ -21,6 +25,9 @@ struct RunningInstance {
     shutdown_sender: broadcast::Sender<()>,
 }
 
+static SYNCED_STATE: Lazy<Gauge> = Lazy::new(|| {
+    register_gauge!("synced_state", "current scroll bridge sync status").unwrap()
+});
 
 impl RunningInstance {
     async fn shutdown(self) -> anyhow::Result<()> {
@@ -69,7 +76,7 @@ impl TaskMonitor {
     pub async fn start(&self) {
         let mut instance = self.instance.write().await;
         if instance.is_some() {
-            warn!("Identity committer already running");
+            warn!("Scroll service already running");
         }
 
         // We could use the second element of the tuple as `mut shutdown_receiver`,
@@ -82,18 +89,45 @@ impl TaskMonitor {
         let monitored_txs_sender = Arc::new(monitored_txs_sender);
         let monitored_txs_receiver = Arc::new(Mutex::new(monitored_txs_receiver));
 
+
         let mut handles = Vec::new();
 
-        // Sync Root
+        let base_wake_up_notify = Arc::new(Notify::new());
+        
+        // Propagate Root
         let app = self.app.clone();
-        let finalize_identities = move || tasks::propagate_root::propagate_root(app.clone());
-        let finalize_identities_handle = crate::utils::spawn_monitored_with_backoff(
-            finalize_identities,
+        let wake_up_notify = base_wake_up_notify.clone();
+        let propagate_root = move || {
+            tasks::propagate_root::propagate_root(
+                app.clone(),
+                monitored_txs_sender.clone(),
+                wake_up_notify.clone()
+            )
+        };
+        let propagate_root_handle = crate::utils::spawn_monitored_with_backoff(
+            propagate_root,
             shutdown_sender.clone(),
             PROPAGATE_ROOT_BACKOFF,
             self.shutdown.clone(),
         );
-        handles.push(finalize_identities_handle);
+        handles.push(propagate_root_handle);
+      
+        // Check Status
+        let app = self.app.clone();
+        let wake_up_notify = base_wake_up_notify.clone();
+        let check_sync_state = move || {
+            tasks::check_sync::check_sync(
+                app.clone(),
+                wake_up_notify.clone()
+            )
+        };
+        let check_sync_state_handle = crate::utils::spawn_monitored_with_backoff(
+            check_sync_state,
+            shutdown_sender.clone(),
+            CHECK_SYNC_STATE_BACKOFF,
+            self.shutdown.clone(),
+        );
+        handles.push(check_sync_state_handle);
 
 
         // Monitor transactions
@@ -114,6 +148,19 @@ impl TaskMonitor {
             handles,
             shutdown_sender,
         });
+    }
+
+    async fn check_synced_state(app: &Arc<App>) -> anyhow::Result<bool> {
+        let state = app.bridge_processor.check_sync_state().await?;
+        let gauge_value = if state { 1.0 } else { 0.0 };
+        SYNCED_STATE.set(gauge_value);
+        Ok(state)
+    }
+
+    async fn check_if_propagated(database: &Database) -> anyhow::Result<bool> {
+        let status = database.get_db_status().await?.unwrap_or_else(|| "unsynced".to_string());
+        let bridge_status = BridgeStatus::from_str(&status).unwrap_or(BridgeStatus::Unsynced);
+        Ok(bridge_status == BridgeStatus::Pending)
     }
 
     /// # Errors

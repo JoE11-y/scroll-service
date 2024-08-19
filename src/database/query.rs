@@ -80,17 +80,17 @@ pub trait DatabaseQuery<'a>: Executor<'a, Database = Postgres> {
         .await?)
     }
 
-    // async fn get_sync_status(self) -> Result<Option<String>, Error> {
-    //     let query = sqlx::query(
-    //         r#"
-    //         SELECT status
-    //         FROM service_status
-    //         WHERE id = 1
-    //         "#
-    //     );
-    //     let row = self.fetch_optional(query).await?;
-    //     Ok(row.map(|r| r.get::<String, _>(0)))
-    // }
+    async fn get_db_status(self) -> Result<Option<String>, Error> {
+        let query = sqlx::query(
+            r#"
+            SELECT status
+            FROM service_status
+            WHERE id = 1
+            "#
+        );
+        let row = self.fetch_optional(query).await?;
+        Ok(row.map(|r| r.get::<String, _>(0)))
+    }
 
     // async fn get_last_sync_timestamp(self) -> Result<Option<DateTime<Utc>>, Error> {
     //     let query = sqlx::query(

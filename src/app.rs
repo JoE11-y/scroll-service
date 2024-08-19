@@ -1,11 +1,5 @@
 use std::sync::Arc;
 
-// use sqlx::{Postgres, Transaction};
-
-// use chrono::{DateTime, Utc};
-// use crate::database::{types, Error};
-// use crate::server::error::Error as ServerError;
-// use crate::retry_tx;
 use tracing::{info, instrument};
 use crate::config::Config;
 use crate::contracts::ScrollBridge;
@@ -36,8 +30,6 @@ impl App {
         let bridge_processor = Arc::new(
             BridgeProcessor::new(
                 ethereum.clone(),
-                database.clone(),
-                config.clone(),
                 scroll_bridge.clone()   
             )
             .await?

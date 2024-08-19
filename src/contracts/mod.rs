@@ -1,6 +1,5 @@
 //! Functionality for interacting with smart contracts deployed on chain.
 pub mod abi;
-pub mod scanner;
 
 use anyhow::{anyhow, bail};
 use ethers::providers::Middleware;
@@ -132,7 +131,14 @@ impl ScrollBridge {
         let latest_root = self.world_id_abi.latest_root().call().await?;
         Ok(latest_root)
     }
-
+    
+    #[instrument(level = "debug", skip_all)]
+    pub async fn check_sync_state(&self) -> anyhow::Result<bool>{
+        let latest_root_scrooll = self.get_scroll_latest_root().await?;
+        let latest_root_world_id = self.get_world_id_latest_root().await?;
+        Ok(latest_root_scrooll == latest_root_world_id)
+    }
+    
     #[instrument(level = "debug", skip_all)]
     pub async fn is_root_mined(&self, root: U256) -> anyhow::Result<bool> {
         let (root_on_mainnet, ..) = self.world_id_abi.query_root(root).call().await?;
