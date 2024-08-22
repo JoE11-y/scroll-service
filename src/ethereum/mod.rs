@@ -77,6 +77,10 @@ impl Ethereum {
         self.l1_write_provider.fetch_pending_transactions().await
     }
 
+    pub async fn fetch_mined_transactions(&self) -> Result<Vec<TransactionId>, TxError> {
+        self.l1_write_provider.fetch_mined_transactions().await
+    }
+
     pub async fn mine_transaction(&self, tx: TransactionId) -> Result<bool, TxError> {
         self.l1_write_provider.mine_transaction(tx).await
     }

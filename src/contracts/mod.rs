@@ -56,15 +56,15 @@ impl ScrollBridge {
 
         // Connect to the running batching contract.
         let bridge_abi = ScrollStateBridge::new(
-            network_config.scroll_bridge_address,
+            address,
             ethereum.l1_provider().clone(),
         );
 
         let owner = bridge_abi.owner().call().await?;
-        if owner != ethereum.address() {
-            error!(?owner, signer = ?ethereum.address(), "Signer is not the owner of the state bridge contract.");
-            panic!("Cannot currently continue in read-only mode.")
-        }
+        // if owner != ethereum.address() {
+        //     error!(?owner, signer = ?ethereum.address(), "Signer is not the owner of the state bridge contract.");
+        //     panic!("Cannot currently continue in read-only mode.")
+        // }
 
         info!(
             ?address,
@@ -74,6 +74,7 @@ impl ScrollBridge {
 
         // get scrollworldID address from scoll bridge
         let scroll_world_id_address = bridge_abi.scroll_world_id_address().call().await?;
+        info!(?scroll_world_id_address);
 
         let code = ethereum.l2_provider().get_code(scroll_world_id_address, None).await?;
         if code.as_ref().is_empty() {
@@ -81,10 +82,12 @@ impl ScrollBridge {
                 ?scroll_world_id_address,
                 "No contract code is deployed at the scroll world id address."
             );
+            panic!("Cannot continue")
         }
+
         let scroll_world_id_abi = ScrollWorldId::new(
             scroll_world_id_address,
-            ethereum.l1_provider().clone()
+            ethereum.l2_provider().clone()
         );
 
         // get worldId address from scroll bridge
@@ -95,6 +98,7 @@ impl ScrollBridge {
                 ?world_id_address,
                 "No contract code is deployed at the scroll world id address."
             );
+            panic!("Cannot continue");
         }
         let world_id_abi = WorldId::new(
             world_id_address,
@@ -113,7 +117,9 @@ impl ScrollBridge {
 
     #[instrument(level = "debug")]
     pub async fn propagate_root(&self) -> anyhow::Result<TransactionId> {
-        let propagate_root_transaction = self.bridge_abi.propagate_root().tx;
+        let mut propagate_root_transaction: ethers::types::transaction::eip2718::TypedTransaction  = self.bridge_abi.propagate_root().tx;
+        let value_in_wei: U256 = ethers::utils::parse_ether("0.1").unwrap();
+        propagate_root_transaction.set_value(value_in_wei);
         self.ethereum
             .send_transaction(propagate_root_transaction, true)
             .await
@@ -134,9 +140,19 @@ impl ScrollBridge {
     
     #[instrument(level = "debug", skip_all)]
     pub async fn check_sync_state(&self) -> anyhow::Result<bool>{
-        let latest_root_scrooll = self.get_scroll_latest_root().await?;
+        let latest_root_scroll_world_id = match self.get_scroll_latest_root().await {
+            Ok(id) => id,
+            Err(err) => {
+                // Log the error with context but do not panic
+                error!(%err, "Failed to get the latest root world ID");
+                // Return false or another appropriate value to indicate failure
+                return Ok(false);
+            }
+        };
+
         let latest_root_world_id = self.get_world_id_latest_root().await?;
-        Ok(latest_root_scrooll == latest_root_world_id)
+        // info!("latest_root_world_id: {:?}", latest_root_world_id);
+        Ok(latest_root_scroll_world_id == latest_root_world_id)
     }
     
     #[instrument(level = "debug", skip_all)]

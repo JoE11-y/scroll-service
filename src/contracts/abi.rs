@@ -31,7 +31,7 @@ abigen!(
     ScrollStateBridge,
     r#"[
         event RootPropagated(uint256 root)
-        function propagateRoot() external
+        function propagateRoot() external payable
         function owner() public view virtual returns (address)
         function scrollWorldIDAddress() public view returns (address)
         function worldIDAddress() public view returns (address)

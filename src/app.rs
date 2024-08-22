@@ -44,9 +44,10 @@ impl App {
 
     /// Initializes the server state.
     #[instrument(level = "debug", skip(self))]
-    pub async fn initialize_server(self: Arc<Self>) -> anyhow::Result<()> {
+    pub async fn initialize_server(&self) -> anyhow::Result<()> {
         if !self.database.server_initialized().await? {
-            self.database.initialize_server().await?
+            self.database.initialize_server().await?;
+            self.database.mark_status_as_unsynced().await?;
         }
         info!("DB initialized");
         Ok(())

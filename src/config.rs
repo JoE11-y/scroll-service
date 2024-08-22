@@ -200,7 +200,7 @@ pub mod default {
     }
 
     pub fn oz_api_url() -> String {
-        "https://api.defender.openzeppelin.com".to_string()
+        "https://api.defender.openzeppelin.com/v2".to_string()
     }
 
     pub fn oz_transaction_validity() -> Duration {

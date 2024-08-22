@@ -15,7 +15,7 @@ pub type TransactionId = String;
 pub trait Processor: Send + Sync + 'static {
     async fn propagate_root(&self) -> anyhow::Result<TransactionId>;
     async fn check_sync_state(&self) -> anyhow::Result<bool>;
-    async fn await_clean_slate(&self) -> anyhow::Result<()>;
+    async fn get_mined_transactions(&self) -> anyhow::Result<Vec<TransactionId>>;
     async fn mine_transaction(&self, transaction_id: TransactionId) -> anyhow::Result<bool>;
 }
 
@@ -34,16 +34,10 @@ impl Processor for BridgeProcessor {
         self.check_sync_state().await
     }
 
-    async fn await_clean_slate(&self) -> anyhow::Result<()> {
-        // Await for all pending transactions
-        let pending_identities = self.fetch_pending_transactions().await?;
-
-        for pending_identity_tx in pending_identities {
-            // Ignores the result of each transaction - we only care about a clean slate in
-            // terms of pending transactions
-            drop(self.mine_transaction(pending_identity_tx).await);
-        }
-        Ok(())
+    async fn get_mined_transactions(&self) -> anyhow::Result<Vec<TransactionId>>{
+        // Await for all mined transactions
+        let mined_transactions = self.fetch_mined_transactions().await?;
+        Ok(mined_transactions)
     }
 
     #[instrument(level = "debug", skip(self))]
@@ -104,8 +98,8 @@ impl BridgeProcessor {
     }
 
     #[instrument(level = "debug", skip_all)]
-    async fn fetch_pending_transactions(&self) -> anyhow::Result<Vec<TransactionId>> {
-        let pending_transactions = self.ethereum.fetch_pending_transactions().await?;
+    async fn fetch_mined_transactions(&self) -> anyhow::Result<Vec<TransactionId>> {
+        let pending_transactions = self.ethereum.fetch_mined_transactions().await?;
         Ok(pending_transactions)
     }
 

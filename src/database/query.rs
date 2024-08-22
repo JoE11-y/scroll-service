@@ -4,7 +4,7 @@ use sqlx::{Executor, Postgres, Row};
 use crate::database::{types, Error};
 
 use crate::processor::status::BridgeStatus;
-use types::ServerStatus;
+use types::{ServerStatus, TxStatus};
 
 /// This trait provides the individual and composable queries to the database.
 /// Each method is a single atomic query, and can be composed within a
@@ -38,6 +38,42 @@ pub trait DatabaseQuery<'a>: Executor<'a, Database = Postgres> {
         .get::<bool, _>(0))
     }
 
+    async fn insert_new_transaction(
+        self,
+        transaction_id: &String
+    ) -> Result<(), Error> {
+        let query = sqlx::query(
+            r#"
+            INSERT INTO transactions(
+                transaction_id,
+                created_at
+            ) VALUES ($1, CURRENT_TIMESTAMP)
+            "#,
+        )
+        .bind(transaction_id);
+        self.execute(query).await?;
+        Ok(())
+    }
+
+    async fn update_transaction(
+        self,
+        transaction_id: &String,
+        tx_status: TxStatus,
+    ) -> Result<(), Error> {
+        let query = sqlx::query(
+            r#"
+            UPDATE transactions
+            SET status = $1
+            WHERE transaction_id = $2
+            "#,
+        )
+        .bind(tx_status)
+        .bind(transaction_id);
+        self.execute(query).await?;
+        Ok(())
+    }
+
+
     async fn update_server_status(
         self,
         status: BridgeStatus
@@ -51,7 +87,7 @@ pub trait DatabaseQuery<'a>: Executor<'a, Database = Postgres> {
                 WHERE id = 1
                 "#
             )
-            .bind(<&str>::from(status))
+            .bind(status)
         } else {
             // Only update the status if the status is not Synced
             sqlx::query(
@@ -66,6 +102,39 @@ pub trait DatabaseQuery<'a>: Executor<'a, Database = Postgres> {
 
         self.execute(query).await?;
         Ok(())
+    }
+
+    async fn get_last_transaction_status(
+        self
+    ) -> Result<Option<TxStatus>, Error> {
+        let query = sqlx::query(
+            r#"
+            SELECT status
+            FROM transactions
+            ORDER BY created_at DESC
+            LIMIT 1;
+            "#
+        );
+        let row = self.fetch_optional(query).await?;
+
+        Ok(row.map(|r| r.get::<TxStatus, _>(0)))
+    }
+
+    async fn get_last_transaction_id(
+        self
+    ) -> Result<Option<String>, Error> {
+        let query = sqlx::query(
+            r#"
+            SELECT transaction_id
+            FROM transactions
+            WHERE status = $1
+            ORDER BY created_at DESC
+            LIMIT 1;
+            "#
+        ).bind(TxStatus::Pending);
+        let row = self.fetch_optional(query).await?;
+
+        Ok(row.map(|r| r.get::<String, _>(0)))
     }
 
     async fn get_service_status(self) -> Result<Option<ServerStatus>, Error> {

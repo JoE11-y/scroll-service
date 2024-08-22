@@ -15,6 +15,8 @@ pub trait Inner: Send + Sync + 'static {
     async fn fetch_pending_transactions(&self) -> Result<Vec<TransactionId>, TxError>;
 
     async fn mine_transaction(&self, tx: TransactionId) -> Result<TransactionResult, TxError>;
+
+    async fn fetch_mined_transactions(&self) -> Result<Vec<TransactionId>, TxError>;
 }
 
 pub struct TransactionResult {

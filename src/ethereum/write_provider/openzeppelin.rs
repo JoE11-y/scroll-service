@@ -159,6 +159,7 @@ impl OzRelay {
                 info!(only_once, "mining previously submitted transaction");
 
                 let transaction_id = existing_transaction.transaction_id.clone();
+                info!(?transaction_id);
 
                 self.mine_transaction_id(&transaction_id).await?;
 
@@ -213,6 +214,20 @@ impl OzRelay {
 
         Ok(pending_txs)
     }
+
+    pub async fn fetch_mined_transactions(&self) -> Result<Vec<TransactionId>, TxError> {
+        let recent_pending_txs = self
+            .list_recent_transactions()
+            .await
+            .map_err(|err| TxError::Fetch(Box::new(err)))?;
+
+        let pending_txs = recent_pending_txs
+            .into_iter()
+            .map(|tx| tx.transaction_id)
+            .collect();
+
+        Ok(pending_txs)
+    }
 }
 
 #[async_trait::async_trait]
@@ -236,5 +251,9 @@ impl Inner for OzRelay {
             transaction_id: transaction.transaction_id,
             hash:           transaction.hash,
         })
+    }
+
+    async fn fetch_mined_transactions(&self) -> Result<Vec<TransactionId>, TxError> {
+        self.fetch_mined_transactions().await
     }
 }

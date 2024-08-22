@@ -114,6 +114,24 @@ impl Inner for TxSitter {
         Ok(tx_ids)
     }
 
+
+    async fn fetch_mined_transactions(&self) -> Result<Vec<TransactionId>, TxError> {
+        let mined_txs = self
+            .client
+            .get_txs_by_status(TxStatus::Mined)
+            .await
+            .context("Error fetching pending transactions")
+            .map_err(TxError::Send)?;
+
+        let mut tx_ids = vec![];
+
+        for tx in mined_txs {
+            tx_ids.push(tx.tx_id);
+        }
+
+        Ok(tx_ids)
+    }
+
     async fn mine_transaction(&self, tx: TransactionId) -> Result<TransactionResult, TxError> {
         tokio::time::timeout(MINING_TIMEOUT, self.mine_transaction_inner(tx))
             .await

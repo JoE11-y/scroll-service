@@ -62,7 +62,7 @@ impl OzApi {
             api_url: api_url.into_url()?,
             api_key,
             api_secret,
-            auth_disabled: true,
+            auth_disabled: false,
         })
     }
 
@@ -72,12 +72,14 @@ impl OzApi {
     ) -> Result<RelayerTransactionBase> {
         let headers = self.headers().await?;
 
+        info!(?headers);
+
         let res = headers
             .apply(self.client.post(self.txs_url()?))
             .json(&tx)
             .send()
             .await?;
-
+        info!(?res);
         Self::json_or_error(res).await
     }
 

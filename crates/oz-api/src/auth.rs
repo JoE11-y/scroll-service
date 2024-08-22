@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 use cognitoauth::cognito_srp_auth::{auth, CognitoAuthInput};
 use hyper::http::HeaderValue;
 use hyper::HeaderMap;
+use tracing::info;
 
 use crate::error::Error;
 
@@ -37,12 +38,14 @@ impl ExpiringHeaders {
             client_secret: None,
         };
 
+        info!("i'm here");
         let res = auth(input).await?.ok_or(Error::Unauthorized)?;
 
-        let access_token = res.access_token().ok_or(Error::Unauthorized)?;
+        let access_token: &str = res.access_token().ok_or(Error::Unauthorized)?;
 
+        info!(?access_token);
         let mut auth_value = HeaderValue::from_str(&format!("Bearer {access_token}"))?;
-        auth_value.set_sensitive(true);
+        auth_value.set_sensitive(false);
 
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(reqwest::header::AUTHORIZATION, auth_value);

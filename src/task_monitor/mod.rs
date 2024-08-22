@@ -9,6 +9,7 @@ use tokio::sync::{broadcast, mpsc, Mutex, RwLock, Notify};
 use tokio::task::JoinHandle;
 use tracing::{info, instrument, warn};
 use crate::database::query::DatabaseQuery;
+use crate::database::types::TxStatus;
 use crate::database::Database;
 use crate::processor::status::BridgeStatus;
 use crate::utils::shutdown::Shutdown;
@@ -19,6 +20,7 @@ pub mod tasks;
 const PROPAGATE_ROOT_BACKOFF: Duration = Duration::from_secs(5);
 const CHECK_SYNC_STATE_BACKOFF: Duration = Duration::from_secs(5);
 const MONITOR_TXNS_BACKOFF: Duration = Duration::from_secs(5);
+const FINALIZE_TXNS_BACKOFF: Duration = Duration::from_secs(5);
 
 struct RunningInstance {
     handles:         Vec<JoinHandle<()>>,
@@ -121,6 +123,7 @@ impl TaskMonitor {
                 wake_up_notify.clone()
             )
         };
+
         let check_sync_state_handle = crate::utils::spawn_monitored_with_backoff(
             check_sync_state,
             shutdown_sender.clone(),
@@ -129,6 +132,18 @@ impl TaskMonitor {
         );
         handles.push(check_sync_state_handle);
 
+        
+        // Finalize transactions
+        let app = self.app.clone();
+        let finalize_txs =
+            move || tasks::finalize_txs::finalize_txs(app.clone());
+        let finalize_txs_handle = crate::utils::spawn_monitored_with_backoff(
+            finalize_txs,
+            shutdown_sender.clone(),
+            FINALIZE_TXNS_BACKOFF,
+            self.shutdown.clone(),
+        );
+        handles.push(finalize_txs_handle);
 
         // Monitor transactions
         let app = self.app.clone();
@@ -141,7 +156,6 @@ impl TaskMonitor {
             self.shutdown.clone(),
         );
         handles.push(monitor_txs_handle);
-
 
         // Create the instance
         *instance = Some(RunningInstance {
@@ -157,16 +171,16 @@ impl TaskMonitor {
         Ok(state)
     }
 
-    async fn check_if_propagated(database: &Database) -> anyhow::Result<bool> {
+    async fn check_db_state(database: &Database, status_check: BridgeStatus) -> anyhow::Result<bool> {
         let status = database.get_db_status().await?.unwrap_or_else(|| "unsynced".to_string());
         let bridge_status = BridgeStatus::from_str(&status).unwrap_or(BridgeStatus::Unsynced);
-        Ok(bridge_status == BridgeStatus::Pending)
+        Ok(bridge_status == status_check)
     }
 
-    async fn check_if_unsynced(database: &Database) -> anyhow::Result<bool> {
-        let status = database.get_db_status().await?.unwrap_or_else(|| "unsynced".to_string());
-        let bridge_status = BridgeStatus::from_str(&status).unwrap_or(BridgeStatus::Unsynced);
-        Ok(bridge_status == BridgeStatus::Unsynced)
+    async fn check_last_transaction_status(database: &Database, status_check: TxStatus) -> anyhow::Result<bool> {
+        let status = database.get_last_transaction_status().await?;
+        // let tx_status = TxStatus::from_str(&status).unwrap_or(TxStatus::Pending);
+        Ok(status == Some(status_check))
     }
 
     /// # Errors

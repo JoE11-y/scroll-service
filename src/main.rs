@@ -28,12 +28,14 @@ struct Args {
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     let args = Args::parse();
+    // telemetry_batteries::init()?;
     scroll_service(args)
         .await
         .map_err(|e| eyre::eyre!("{:?}", e))
 }
 
 async fn scroll_service(args: Args) -> anyhow::Result<()> {
+
     let config = load_config(args.config.as_deref())?;
 
     let _tracing_shutdown_handle = init_telemetry(&config.service)?;
@@ -50,6 +52,8 @@ async fn scroll_service(args: Args) -> anyhow::Result<()> {
 
     // Create App struct
     let app = App::new(config).await?;
+
+    app.initialize_server().await?;
 
     let task_monitor = TaskMonitor::new(app.clone(), shutdown.clone());
 

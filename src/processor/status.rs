@@ -1,9 +1,12 @@
 use std::str::FromStr;
-
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(
+  Debug, Clone, Serialize, Deserialize, Copy, PartialEq, Eq, sqlx::Type
+)]
+#[sqlx(rename_all = "camelCase")]
+#[sqlx(type_name = "tx_status")]
 #[serde(rename_all = "camelCase")]
 pub enum BridgeStatus {
     Unsynced,
