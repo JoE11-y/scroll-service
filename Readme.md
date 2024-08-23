@@ -5,92 +5,138 @@
 [![codecov](https://img.shields.io/codecov/c/github/recmo/rust-service-template)](https://codecov.io/gh/Recmo/rust-service-template)
 [![Build, Test & Deploy](https://github.com/recmo/rust-service-template/actions/workflows/build-test-deploy.yml/badge.svg)](https://github.com/recmo/rust-service-template/actions/workflows/build-test-deploy.yml)
 
-## Features
+## Basic Overview of the Task Manager Service
 
-### Continuous Integration
+The Task Manager service is designed to ensure consistency between two blockchain environments—specifically, the Scroll World ID contract and the Mainnet World ID contract. This service plays a critical role in maintaining data integrity across these decentralized platforms by comparing the latest roots (Merkle tree roots) recorded in both contracts. Here’s how the service works in detail:
 
-* Build, test and deploy
-  * Run rustfmt, clippy and doc build
+### Value Comparison
 
+The Task Manager continuously monitors the Scroll World ID contract and the Mainnet World ID contract to fetch the latest roots comparing them to check for discrepancies.
 
-**Main features.** Comes with the kitchen sink. Remove what you don't need.
+### Triggering the Propagate Root Task
 
-* Command line argument parsing using `StructOpt`.
-* Version info including commit hash.
-* Error handling using `anyhow` and `thiserror`.
-* Logging using `tracing` with `log` and `futures` compatibility, `-v`, `-vv`, etc. command line arguments.
-* Preloaded with `serde`, `rand`, `rayon`, `itertools`.
-* Tests using `proptest`, `pretty_assertions` and `float_eq`. I recommend the [closure style](https://docs.rs/proptest/0.10.1/proptest/macro.proptest.html#closure-style-invocation) proptests.
-* Benchmarks using `criterion` (run `cargo criterion`).
-* Dependencies build optimized, also in dev build.
-* From scratch Docker build statically linked to musl.
+If the roots from the Scroll and Mainnet contracts are found to be unequal, it indicates that the two environments are out of sync. To resolve this, the Task Manager triggers the **Propagate Root** task. This task ensures that the root from the Mainnet World ID is propagated to the Scroll World ID, thereby aligning both environments.
 
-## Deployment
+### Transaction Generation and Mining
 
-Using GitHub actions for each PR it will push a Docker container image to the [Github container registry](ghcr.io). A Helm chart is included for easy deployment to Kubernetes clusters. The ingress rule assumes a Traefik frontend.
+Once the Propagate Root task is triggered, it generates a transaction ID (txId). This transaction is then sent to the network, where a relayer service takes over to ensure that the transaction is mined. This process effectively updates the root on the Scroll World ID to match that of the Mainnet World ID.
 
+### Sync State Endpoint
 
-Todo: Tutorial using: `https://github.com/redkubes/otomi-core`
-## Hints
+The service also offers an endpoint that provides real-time information on the synchronization status between the Scroll World ID and the Mainnet World ID. Through this endpoint, users can:
 
-Lint, build, test, run
+- Check the Current Sync State: Determine whether the roots of the Scroll and Mainnet contracts are aligned or if a discrepancy exists.
+- Monitor the Last Sync Action: View the timestamp of the last successful synchronization action.
+This allows users to easily monitor the synchronization status and ensure that both environments remain consistent.
 
-```shell
-cargo fmt && cargo clippy --all-targets --all-features && cargo build --all-targets --all-features && cargo test && cargo run --
-```
+`/serviceStatus` - returns the server status
 
-Run benchmarks
+## GETTING STARTED
 
-```shell
-cargo bench --bench criterion --features="bench proptest"
-```
+### (Local development)
 
-## How to use the template
+Install pre-requisites on the dev machine
 
-Update `Cargo.toml` and regenerate `deploy/Chart.yaml` from it using the included script:
+| Os            | Command                                                |
+| ------------- | ------------------------------------------------------ |
+| MacOs         | `brew install protobuf pkg-config`                     |
+| Ubuntu/Debian | `sudo apt-get install -y protobuf-compiler pkg-config` |
+
+Install [Docker](https://docs.docker.com/get-docker/) - Docker is used to setup the database for testing
+
+Fetch the [postgres](https://hub.docker.com/_/postgres) docker image before running tests.
 
 ```shell
-./deploy/generate.py > ./deploy/Chart.yaml
+docker pull postgres
 ```
 
-Change the name of the crate from `rust_service_template` to the new name in `./criterion.rs` and `./src/cli/main.rs`.
+### Local Node
 
-Implement your service in `src/lib.rs`.
+You'll need to run a local node like geth or [ganache](https://archive.trufflesuite.com/ganache/). Start up a new chain
+and take note of the dev addresses. You can follow instructions [here](https://book.getfoundry.sh/anvil/).
 
-If your service makes outbound connections, add egress rules to `deploy/templates/network-policy.yaml`.
+### Contracts
 
-Deploy using Helm on a Kubernetes cluster using Traefik for ingress management.
+You need the Scroll Bridge Contract which is used by the service to propagate the root, while the scroll world id contract and the L1 world contract address, are read from the bridge contract public states.
 
+Clone [scroll-bridge-deployer](https://github.com/dragan2234/worldcoin-scroll-bridge.git) and follow the steps in the readme there.
 
-## To do
-
-Copy from Tokio:
-* Add license, contributing, and other changelogs
-
-* Rustdocs with Katex.
-* Long running / fuzz mode for proptests.
-* [`loom`](https://crates.io/crates/loom) support for concurrency testing, maybe [`simulation`](https://github.com/tokio-rs/simulation).
-* Add crates.io publishing
-
-
-## Build images locally
+### Database
 
 ```shell
-for arch in x86_64 aarch64; do
-  docker run --rm \
-    -v "$(pwd)":/src \
-    -v $HOME/.cargo:/usr/local/cargo:Z \
-    -v /usr/local/cargo/bin \
-    ghcr.io/recmo/rust-static-build:1.58-$arch \
-    cargo build --locked --release --features mimalloc
-done
-for arch in amd64 arm64; do
-  docker build --platform linux/$arch --tag rust-service-template:latest-$arch .
-done
-docker manifest rm ghcr.io/recmo/rust-service-template:latest
-docker manifest create \
-    rust-service-template:latest \
-    rust-service-template:latest-amd64 \
-    rust-service-template:latest-arm64
-docker manifest inspect rust-service-template:latest
+docker run --rm -e POSTGRES_HOST_AUTH_METHOD=trust -p
 ```
+
+### Relayer Service
+
+#### 1. TX sitter
+
+TX sitter is a service providing API for service to submit transactions on blockchain.
+
+Clone [tx-sitter-monolith](https://github.com/worldcoin/tx-sitter-monolith) and follow build instructions
+
+#### 2. OZ Relayer
+
+Another popular relayer service used to submit transactions on the blockchain.
+
+Check [here](https://docs.openzeppelin.com/defender/manage/relayers) for instructions on how to set up.
+
+### SERVICE
+
+Now you need to create a `config.toml` file for signup-sequencer:
+
+```toml
+[app]
+
+[network]
+# Address of ScrollBridge contract on blockchain.
+# This is an active one on sepolia
+scroll_bridge_address = '0xA268281948353043A79d1da3cd173019e29d9d91'
+
+[providers]
+# Blockchain API URL (anvil or geth or public rpc)
+l1_network_provider = "https://eth-sepolia.g.alchemy.com/v2/" 
+l2_network_provider = "https://scroll-public.scroll-testnet.quiknode.pro" 
+
+[relayer]
+kind = "tx_sitter"
+# URL of TX-sitter API + API token
+tx_sitter_url = "http://localhost:3000/1/api/YKxkLHafQQi83-kMmt9_SrGTQ7wEMBwY9bEqCvddBKU="
+tx_sitter_address = "0x8f643b962d6d6120ef8a9c3f3428b5e487b75daf"
+tx_sitter_gas_limit = 2000000
+
+[database]
+database = "postgres://postgres:postgres@127.0.0.1:5432/database"
+
+[server]
+# Port to run signup-sequencer API on
+address = "0.0.0.0:8080"
+```
+
+The daemon will try to create temporary files in `/data`. If your machine does not have it you could create it:
+
+```shell
+mkdir service_data
+sudo ln -sf `pwd`/service /data
+```
+
+And then run the daemon:
+
+```shell
+RUST_LOG=info cargo run config.toml
+```
+
+## Contributing
+
+We welcome your pull requests! But also consider the following:
+
+1. Fork this repo from `main` branch.
+2. If you added code that should be tested, please add tests.
+3. If you changed the API routes, please update this readme in your PR.
+4. Ensure that CI tests suite passes (lints as well).
+5. If you added dependencies, make sure you add exemptions for `cargo vet`
+
+When you submit code changes, your submissions are understood to be under the same MIT License that covers the project.
+Feel free to contact the maintainers if that's a concern.
+
+Report bugs using github issues.

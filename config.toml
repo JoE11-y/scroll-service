@@ -27,7 +27,7 @@ tx_sitter_gas_limit = 200000
 # de2a5dfa-4d92-4ded-a8f0-064aecbd3540
 
 [database]
-database = "postgres://postgres:password@localhost:5432/sequencer?sslmode=disable"
+database = "postgres://postgres:postgres@127.0.0.1:5432/database"
 
 [server]
 # Port to run scroll-bridge-service API on
