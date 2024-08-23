@@ -109,7 +109,7 @@ tx_sitter_gas_limit = 2000000
 database = "postgres://postgres:postgres@127.0.0.1:5432/database"
 
 [server]
-# Port to run signup-sequencer API on
+# Port to run service API on
 address = "0.0.0.0:8080"
 ```
 
