@@ -106,7 +106,7 @@ tx_sitter_address = "0x8f643b962d6d6120ef8a9c3f3428b5e487b75daf"
 tx_sitter_gas_limit = 2000000
 
 [database]
-database = "postgres://postgres:postgres@127.0.0.1:5432/database"
+database = "postgres://postgres:password@localhost:5432/service?sslmode=disable"
 
 [server]
 # Port to run service API on
